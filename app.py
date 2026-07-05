@@ -21,6 +21,46 @@ WEIGHTS_PATH = "model_weights.npz"
 CANVAS_SIZE = 280
 IMG_SIZE = 28
 
+
+def preprocess_centered(gray_arr, pad=2):
+    """
+    Convert a raw drawn image into the same format MNIST digits use:
+    cropped to the digit's bounding box, scaled to fit a 20x20 box,
+    and centered in a 28x28 frame. This matters a lot for freehand
+    drawings, since they're rarely centered/sized the way MNIST is.
+    """
+    arr = gray_arr.astype("float32")
+    coords = np.argwhere(arr > 10)
+    if coords.size == 0:
+        return np.zeros((28, 28), dtype="float32")
+
+    y0, x0 = coords.min(axis=0)
+    y1, x1 = coords.max(axis=0) + 1
+
+    h_full, w_full = arr.shape
+    y0 = max(0, y0 - pad)
+    x0 = max(0, x0 - pad)
+    y1 = min(h_full, y1 + pad)
+    x1 = min(w_full, x1 + pad)
+    cropped = arr[y0:y1, x0:x1]
+
+    h, w = cropped.shape
+    if h > w:
+        new_h = 20
+        new_w = max(1, round(w * (20.0 / h)))
+    else:
+        new_w = 20
+        new_h = max(1, round(h * (20.0 / w)))
+
+    cropped_img = Image.fromarray(cropped.astype("uint8")).resize((new_w, new_h), Image.LANCZOS)
+    cropped_arr = np.array(cropped_img).astype("float32")
+
+    canvas = np.zeros((28, 28), dtype="float32")
+    top = (28 - new_h) // 2
+    left = (28 - new_w) // 2
+    canvas[top:top + new_h, left:left + new_w] = cropped_arr
+    return canvas / 255.0
+
 st.set_page_config(page_title="Digit Recognizer", page_icon="✍️", layout="centered")
 
 
@@ -61,8 +101,7 @@ if canvas_result.image_data is not None:
     gray = Image.fromarray(img).convert("L")
 
     if np.array(gray).sum() > 0:
-        small = gray.resize((IMG_SIZE, IMG_SIZE), Image.LANCZOS)
-        arr = np.array(small).astype("float32") / 255.0
+        arr = preprocess_centered(np.array(gray))
 
         probs = model.predict(arr)
         pred = int(np.argmax(probs))
@@ -84,4 +123,5 @@ if canvas_result.image_data is not None:
                 c3.write("0.0%")
 
 st.caption("Model: CNN trained on MNIST (NumPy inference) · Test accuracy: 99.10%")
+
 
