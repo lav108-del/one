@@ -2,7 +2,7 @@
 Handwritten Digit Recognition - Web App (Streamlit)
 ------------------------------------------------------
 Draw a digit in the browser and the trained CNN predicts it live.
-This is the web-deployable version of predict_gui.py.
+Runs on pure NumPy (no TensorFlow) so it deploys reliably anywhere.
 
 Run locally:
     streamlit run app.py
@@ -13,11 +13,11 @@ Deploy for free:
 
 import numpy as np
 import streamlit as st
-from streamlit_drawable_canvas import st_canvas
+from streamlit_drawable_canvas_fix import st_canvas
 from PIL import Image
-from tensorflow import keras
+from numpy_model import DigitCNN
 
-MODEL_PATH = "digit_model.keras"
+WEIGHTS_PATH = "model_weights.npz"
 CANVAS_SIZE = 280
 IMG_SIZE = 28
 
@@ -26,7 +26,7 @@ st.set_page_config(page_title="Digit Recognizer", page_icon="✍️", layout="ce
 
 @st.cache_resource
 def load_model():
-    return keras.models.load_model(MODEL_PATH)
+    return DigitCNN(WEIGHTS_PATH)
 
 
 model = load_model()
@@ -63,9 +63,8 @@ if canvas_result.image_data is not None:
     if np.array(gray).sum() > 0:
         small = gray.resize((IMG_SIZE, IMG_SIZE), Image.LANCZOS)
         arr = np.array(small).astype("float32") / 255.0
-        arr = arr.reshape(1, IMG_SIZE, IMG_SIZE, 1)
 
-        probs = model.predict(arr, verbose=0)[0]
+        probs = model.predict(arr)
         pred = int(np.argmax(probs))
 
         pred_placeholder.markdown(f"## {pred}")
@@ -78,4 +77,4 @@ if canvas_result.image_data is not None:
             ph.write(f"{digit}: ")
             ph.progress(0.0)
 
-st.caption("Model: CNN trained on MNIST · Test accuracy: 99.10%")
+st.caption("Model: CNN trained on MNIST (NumPy inference) · Test accuracy: 99.10%")
