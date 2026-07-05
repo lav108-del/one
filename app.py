@@ -13,7 +13,7 @@ Deploy for free:
 
 import numpy as np
 import streamlit as st
-from streamlit_drawable_canvas_fix import st_canvas
+from streamlit_drawable_canvas import st_canvas
 from PIL import Image
 from numpy_model import DigitCNN
 
