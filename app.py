@@ -52,7 +52,7 @@ with col2:
     st.subheader("Prediction")
     pred_placeholder = st.empty()
     st.subheader("Confidence")
-    bar_placeholders = [st.empty() for _ in range(10)]
+    row_placeholders = [st.empty() for _ in range(10)]
 
 if canvas_result.image_data is not None:
     img = canvas_result.image_data.astype("uint8")
@@ -68,13 +68,20 @@ if canvas_result.image_data is not None:
         pred = int(np.argmax(probs))
 
         pred_placeholder.markdown(f"## {pred}")
-        for digit, ph in enumerate(bar_placeholders):
-            ph.write(f"{digit}: ")
-            ph.progress(float(probs[digit]))
+        for digit, ph in enumerate(row_placeholders):
+            with ph.container():
+                c1, c2, c3 = st.columns([0.6, 3, 1])
+                c1.write(f"**{digit}**")
+                c2.progress(float(probs[digit]))
+                c3.write(f"{probs[digit] * 100:.1f}%")
     else:
         pred_placeholder.markdown("## —")
-        for digit, ph in enumerate(bar_placeholders):
-            ph.write(f"{digit}: ")
-            ph.progress(0.0)
+        for digit, ph in enumerate(row_placeholders):
+            with ph.container():
+                c1, c2, c3 = st.columns([0.6, 3, 1])
+                c1.write(f"**{digit}**")
+                c2.progress(0.0)
+                c3.write("0.0%")
 
 st.caption("Model: CNN trained on MNIST (NumPy inference) · Test accuracy: 99.10%")
+
