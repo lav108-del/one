@@ -1,0 +1,87 @@
+"""
+Handwritten Digit Recognition - Web App (Streamlit)
+------------------------------------------------------
+Draw a digit in the browser and the trained CNN predicts it live.
+Runs on pure NumPy (no TensorFlow) so it deploys reliably anywhere.
+
+Run locally:
+    streamlit run app.py
+
+Deploy for free:
+    https://share.streamlit.io  (Streamlit Community Cloud)
+"""
+
+import numpy as np
+import streamlit as st
+from streamlit_drawable_canvas import st_canvas
+from PIL import Image
+from numpy_model import DigitCNN
+
+WEIGHTS_PATH = "model_weights.npz"
+CANVAS_SIZE = 280
+IMG_SIZE = 28
+
+st.set_page_config(page_title="Digit Recognizer", page_icon="✍️", layout="centered")
+
+
+@st.cache_resource
+def load_model():
+    return DigitCNN(WEIGHTS_PATH)
+
+
+model = load_model()
+
+st.title("✍️ Handwritten Digit Recognizer")
+st.write("Draw a digit (0–9) below and the neural network will predict it in real time.")
+
+col1, col2 = st.columns([1.2, 1])
+
+with col1:
+    canvas_result = st_canvas(
+        fill_color="white",
+        stroke_width=18,
+        stroke_color="white",
+        background_color="black",
+        height=CANVAS_SIZE,
+        width=CANVAS_SIZE,
+        drawing_mode="freedraw",
+        key="canvas",
+    )
+
+with col2:
+    st.subheader("Prediction")
+    pred_placeholder = st.empty()
+    st.subheader("Confidence")
+    row_placeholders = [st.empty() for _ in range(10)]
+
+if canvas_result.image_data is not None:
+    img = canvas_result.image_data.astype("uint8")
+
+    # canvas gives RGBA; convert to grayscale the same way MNIST expects
+    gray = Image.fromarray(img).convert("L")
+
+    if np.array(gray).sum() > 0:
+        small = gray.resize((IMG_SIZE, IMG_SIZE), Image.LANCZOS)
+        arr = np.array(small).astype("float32") / 255.0
+
+        probs = model.predict(arr)
+        pred = int(np.argmax(probs))
+
+        pred_placeholder.markdown(f"## {pred}")
+        for digit, ph in enumerate(row_placeholders):
+            with ph.container():
+                c1, c2, c3 = st.columns([0.6, 3, 1])
+                c1.write(f"**{digit}**")
+                c2.progress(float(probs[digit]))
+                c3.write(f"{probs[digit] * 100:.1f}%")
+    else:
+        pred_placeholder.markdown("## —")
+        for digit, ph in enumerate(row_placeholders):
+            with ph.container():
+                c1, c2, c3 = st.columns([0.6, 3, 1])
+                c1.write(f"**{digit}**")
+                c2.progress(0.0)
+                c3.write("0.0%")
+
+st.caption("Model: CNN trained on MNIST (NumPy inference) · Test accuracy: 99.10%")
+
